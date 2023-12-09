@@ -4,6 +4,8 @@ library(ggvis)
 library(dplyr)
 library(stringr)
 library(purrr)
+
+library(bslib)
 source("books.R")
 
 # data frame containing all 10,000 books
@@ -12,6 +14,7 @@ all_books = get_books()
 #### UI ####
 
 ui = fluidPage(
+  theme = bs_theme(version = 4, bootswatch = "minty"),
   titlePanel("Book recommender"),
   fluidRow(
     column(3,
@@ -38,7 +41,14 @@ ui = fluidPage(
              span("Number of books selected:",
                   textOutput("n_books")
              )
-           )
+           ),
+           br(),
+           wellPanel(
+             actionButton("randombook", "Find me a book!"),
+             htmlOutput("randombook_title"), 
+             htmlOutput("randombook_author"), 
+             htmlOutput("randombook_cover")
+          )
     )
   )
 )
@@ -97,7 +107,6 @@ server = function(input, output) {
         filter(map_lgl(authors, ~ str_to_lower(.x[1]) %>% str_detect(author)))
     }
     
-    
     as.data.frame(b)
   })
   
@@ -107,25 +116,25 @@ server = function(input, output) {
         #'includes the book title, authors, year published, and pages
     #'@param x the point the user is currently hovering over
     #'@return the tooltip text for a book
-    
+
     # Find the row where X matches x$X
     row_index = which(all_books$X == x$X)
-    
+
     # Check if a matching row was found
     if (length(row_index) > 0) {
       book = all_books[row_index, ]
-      
+
       author = book$authors[[1]][1]
-      
+
       book_tooltip = paste("<b>", book$title, "</b><br>",
             author, " (",
             book$original_publication_year, ")", "<br>",
             book$pages, " pages")
-    
+
       return(book_tooltip)
     }
   }
-  
+
   # A reactive expression with the ggvis plot
   vis = reactive({
     filtered_books %>%
@@ -133,7 +142,7 @@ server = function(input, output) {
       layer_points(size := 50, size.hover := 200,
                    fillOpacity := 0.2, fillOpacity.hover := 0.5,
                    key := ~X) %>%
-      add_tooltip(book_tooltip, "hover") %>%
+      add_tooltip(book_tooltip, "hover") %>% 
       add_axis("x", title = "Average Rating (out of 5)") %>%
       add_axis("y", title = "Number of Ratings", title_offset = 70) %>%
       set_options(width = 500, height = 500)
@@ -144,6 +153,15 @@ server = function(input, output) {
   vis %>% bind_shiny("plot1")
   
   output$n_books = renderText({ nrow(filtered_books()) })
+  
+  random_row = eventReactive(input$randombook, {
+    sample(1:nrow(filtered_books()), 1)
+  })
+  
+  output$randombook_title = renderText({ paste("<b>", filtered_books()[random_row(), ]$title , "</b>") })
+  output$randombook_author = renderText({ filtered_books()[random_row(), ]$authors[[1]] })
+  output$randombook_cover = renderText({c('<img src="',filtered_books()[random_row(), ]$image_url,'">')})
+  
 }
 
 # run app!
