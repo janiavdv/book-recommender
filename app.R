@@ -19,7 +19,7 @@ ui = fluidPage(
              sliderInput("rating", "Minimum average rating",
                          1, 5, 2.5, step = 0.01),
              sliderInput("fivestars", "Minimum number of five-star reviews on Goodreads",
-                         1000, 3100000, 100000, step = 100000), 
+                         1000, 3100000, 100000, step = 100000),
              selectInput("genre", "Genre (most have multiple genres)",
                          c("All", "Action", "Adventure", "Animation", "Biography", "Comedy",
                            "Crime", "Documentary", "Drama", "Family", "Fantasy", "History",
@@ -32,7 +32,7 @@ ui = fluidPage(
              ),
            )
     ),
-    column(9,  # Increase the width of the column to 9
+    column(9,  
            ggvisOutput("plot1"),
            wellPanel(
              span("Number of books selected:",
@@ -99,13 +99,17 @@ server = function(input, output) {
     #   m = m %>% filter(Director %like% director)
     # }
     
+    b$is_nonfiction <- character(nrow(b))
+    b$is_nonfiction[b$is_nonfiction == 0] <- "Fiction"
+    b$is_nonfiction[b$is_nonfiction == 1] <- "Nonfiction"
+    
     as.data.frame(b)
   })
   
   book_tooltip = function(x) {
     #'@description
         #'generates the tooltip description for a book point
-        #'includes the book title, authors, and year published
+        #'includes the book title, authors, year published, and pages
     #'@param x the point the user is currently hovering over
     #'@return the tooltip text for a book
     
@@ -120,7 +124,8 @@ server = function(input, output) {
       
       book_tooltip = paste("<b>", book$title, "</b><br>",
             author, " (",
-            book$original_publication_year, ")")
+            book$original_publication_year, ")", "<br>",
+            book$pages, " pages")
     
       return(book_tooltip)
     }
@@ -132,13 +137,17 @@ server = function(input, output) {
       ggvis(x = ~average_rating, y = ~ratings_count) %>%
       layer_points(size := 50, size.hover := 200,
                    fillOpacity := 0.2, fillOpacity.hover := 0.5,
-                   key := ~X) %>%
+                   stroke = ~is_nonfiction, key := ~X) %>%
       add_tooltip(book_tooltip, "hover") %>%
       add_axis("x", title = "Average Rating (out of 5)") %>%
       add_axis("y", title = "Number of Ratings", title_offset = 70) %>%
+      add_legend("stroke", title = "", values = c("Fiction", "Nonfiction")) %>%
+      scale_nominal("stroke", domain = c("Fiction", "Nonfiction"),
+                    range = c("pink", "darkgrey")) %>%
       set_options(width = 500, height = 500)
-    # TODO: add coloring for fiction/nonfiction
+    # TODO: change output when no books meet criteria
   })
+
 
   vis %>% bind_shiny("plot1")
   
