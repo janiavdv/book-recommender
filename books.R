@@ -27,8 +27,5 @@ get_books = function() {
   # Convert the 'authors' column to a list
   books$authors = lapply(books$authors, fromJSON)
   
-  # # Add Boolean genre columns
-  all_books$is_nonfiction = sapply(all_books$genres, function(genres) 'nonfiction' %in% genres)
-  
   return(books)
 }

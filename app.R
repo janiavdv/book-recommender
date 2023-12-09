@@ -2,7 +2,12 @@ library(shiny)
 library(ggplot2)
 library(ggvis)
 library(dplyr)
+library(stringr)
+library(purrr)
 source("books.R")
+
+# data frame containing all 10,000 books
+all_books = get_books()
 
 #### UI ####
 
@@ -21,10 +26,7 @@ ui = fluidPage(
              sliderInput("fivestars", "Minimum number of five-star reviews on Goodreads",
                          1000, 3100000, 100000, step = 100000),
              selectInput("genre", "Genre (most have multiple genres)",
-                         c("All", "Action", "Adventure", "Animation", "Biography", "Comedy",
-                           "Crime", "Documentary", "Drama", "Family", "Fantasy", "History",
-                           "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi",
-                           "Short", "Sport", "Thriller", "War", "Western") # TODO: edit list
+                         c("All", str_to_title(unique(unlist(all_books$genres)))) # TODO: edit list
              ),
              textInput("author", "Author name contains"),
              selectInput("language", "Language",
@@ -48,9 +50,6 @@ ui = fluidPage(
 
 
 server = function(input, output) {
-  
-  # data frame containing all 10,000 books
-  all_books = get_books()
   
   # Filter the books, returning a data frame
   filtered_books = reactive({
@@ -85,12 +84,12 @@ server = function(input, output) {
       )
     }
     
-    # TODO: add genre filtering
     # Optional: filter by genre
-    # if (input$genre != "All") {
-    #   genre = paste0("%", input$genre, "%")
-    #   b = b %>% filter(Genre %like% genre)
-    # } 
+    if (input$genre != "All") {
+      g = str_to_lower(input$genre)
+      print(g)
+      b = b %>% filter(map_lgl(genres, ~ g %in% .))
+    }
     
     # TODO: add author filtering
     # # Optional: filter by director
@@ -98,10 +97,6 @@ server = function(input, output) {
     #   director = paste0("%", input$director, "%")
     #   m = m %>% filter(Director %like% director)
     # }
-    
-    b$is_nonfiction <- character(nrow(b))
-    b$is_nonfiction[b$is_nonfiction == 0] <- "Fiction"
-    b$is_nonfiction[b$is_nonfiction == 1] <- "Nonfiction"
     
     as.data.frame(b)
   })
@@ -137,13 +132,10 @@ server = function(input, output) {
       ggvis(x = ~average_rating, y = ~ratings_count) %>%
       layer_points(size := 50, size.hover := 200,
                    fillOpacity := 0.2, fillOpacity.hover := 0.5,
-                   stroke = ~is_nonfiction, key := ~X) %>%
+                   key := ~X) %>%
       add_tooltip(book_tooltip, "hover") %>%
       add_axis("x", title = "Average Rating (out of 5)") %>%
       add_axis("y", title = "Number of Ratings", title_offset = 70) %>%
-      add_legend("stroke", title = "", values = c("Fiction", "Nonfiction")) %>%
-      scale_nominal("stroke", domain = c("Fiction", "Nonfiction"),
-                    range = c("pink", "darkgrey")) %>%
       set_options(width = 500, height = 500)
     # TODO: change output when no books meet criteria
   })
