@@ -14,12 +14,12 @@ ui = fluidPage(
              h4("Filter"),
              sliderInput("ratings", "Minimum number of ratings on Goodreads",
                          3000, 4000000, 1000000, step = 100000), 
-             checkboxInput("include_older_years", "Include years before 1900", FALSE),
              sliderInput("year", "Year published", 1900, 2017, value = c(1970, 2014), sep = ""),
+             checkboxInput("include_older_years", "Include years before 1900", FALSE),
              sliderInput("rating", "Minimum average rating",
                          1, 5, 2.5, step = 0.01),
              sliderInput("fivestars", "Minimum number of five-star reviews on Goodreads",
-                         1000, 3100000, 1000000, step = 100000), 
+                         1000, 3100000, 100000, step = 100000), 
              selectInput("genre", "Genre (most have multiple genres)",
                          c("All", "Action", "Adventure", "Animation", "Biography", "Comedy",
                            "Crime", "Documentary", "Drama", "Family", "Fantasy", "History",
@@ -49,16 +49,15 @@ ui = fluidPage(
 
 server = function(input, output) {
   
+  # data frame containing all 10,000 books
   all_books = get_books()
   
   # Filter the books, returning a data frame
   filtered_books = reactive({
+    
     # Due to dplyr issue #318, we need temp variables for input values
     minratings = input$ratings
-    minyear = input$year[1]
-    maxyear = input$year[2]
-    minrating = input$rating[1]
-    maxrating = input$rating[2]
+    minrating = input$rating
     minfivestars = input$fivestars
     
     
@@ -67,14 +66,16 @@ server = function(input, output) {
       filter(
         ratings_count >= minratings,
         average_rating >= minrating,
-        average_rating <= maxrating,
         ratings_5 >= minfivestars
-      ) 
+      )
+    
+    minyear = input$year[1]
+    maxyear = input$year[2]
     
     # Get books for a specific year based on if we're including <1900
     if (input$include_older_years) {
       b = b %>% filter(
-        (original_publication_year >= minyear && original_publication_year <= maxyear) ||
+        ((original_publication_year >= minyear) & (original_publication_year <= maxyear)) |
         (original_publication_year < 1900)
       )
     } else {
@@ -101,19 +102,28 @@ server = function(input, output) {
     as.data.frame(b)
   })
   
-  # Function for generating tooltip text
   book_tooltip = function(x) {
-    if (is.null(x)) return(NULL)
+    #'@description
+        #'generates the tooltip description for a book point
+        #'includes the book title, authors, and year published
+    #'@param x the point the user is currently hovering over
+    #'@return the tooltip text for a book
     
+    # Find the row where X matches x$X
+    row_index = which(all_books$X == x$X)
     
-    # TODO: configure this for books
-    # Pick out the movie with this ID
-    # all_movies = isolate(movies())
-    # movie = all_movies[all_movies$ID == x$ID, ]
-    # 
-    # paste0("<b>", movie$Title, "</b><br>",
-    #        movie$Year, "<br>",
-    #        "$", scientific = FALSE)
+    # Check if a matching row was found
+    if (length(row_index) > 0) {
+      book = all_books[row_index, ]
+      
+      author = book$authors[[1]][1]
+      
+      book_tooltip = paste("<b>", book$title, "</b><br>",
+            author, " (",
+            book$original_publication_year, ")")
+    
+      return(book_tooltip)
+    }
   }
   
   # A reactive expression with the ggvis plot
@@ -121,11 +131,13 @@ server = function(input, output) {
     filtered_books %>%
       ggvis(x = ~average_rating, y = ~ratings_count) %>%
       layer_points(size := 50, size.hover := 200,
-                   fillOpacity := 0.2, fillOpacity.hover := 0.5) %>%
+                   fillOpacity := 0.2, fillOpacity.hover := 0.5,
+                   key := ~X) %>%
       add_tooltip(book_tooltip, "hover") %>%
-      add_axis("x", title = "xvar_name") %>%
-      add_axis("y", title = "yvar_name") %>%
+      add_axis("x", title = "Average Rating (out of 5)") %>%
+      add_axis("y", title = "Number of Ratings", title_offset = 70) %>%
       set_options(width = 500, height = 500)
+    # TODO: add coloring for fiction/nonfiction
   })
 
   vis %>% bind_shiny("plot1")
