@@ -26,14 +26,12 @@ ui = fluidPage(
              sliderInput("fivestars", "Minimum number of five-star reviews on Goodreads",
                          1000, 3100000, 100000, step = 100000),
              selectInput("genre", "Genre (most have multiple genres)",
-                         c("All", str_to_title(unique(unlist(all_books$genres)))) # TODO: edit list
+                         c("All", str_to_title(unique(unlist(all_books$genres)))) 
              ),
-             textInput("author", "Author name contains"),
-             selectInput("language", "Language",
-                         c("All", "English") # TODO: edit list
+             textInput("author", "Author name contains")
              ),
-           )
-    ),
+           ),
+    
     column(9,  
            ggvisOutput("plot1"),
            wellPanel(
@@ -44,6 +42,7 @@ ui = fluidPage(
     )
   )
 )
+
 
 
 #### Server ####
@@ -84,19 +83,20 @@ server = function(input, output) {
       )
     }
     
-    # Optional: filter by genre
+    # Optional: filter by genre (dropdown)
     if (input$genre != "All") {
       g = str_to_lower(input$genre)
-      print(g)
       b = b %>% filter(map_lgl(genres, ~ g %in% .))
     }
     
-    # TODO: add author filtering
-    # # Optional: filter by director
-    # if (!is.null(input$director) && input$director != "") {
-    #   director = paste0("%", input$director, "%")
-    #   m = m %>% filter(Director %like% director)
-    # }
+    # Optional: filter by author name (text input)
+    if (!is.null(input$author) & input$author != "") {
+      author = tolower(input$author)
+      b = b %>%
+        # sub-string search for author
+        filter(map_lgl(authors, ~ str_to_lower(.x[1]) %>% str_detect(author)))
+    }
+    
     
     as.data.frame(b)
   })
