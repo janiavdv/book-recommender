@@ -153,8 +153,8 @@ server = function(input, output) {
   
   book_tooltip = function(x) {
     #'@description
-    #'generates the tooltip description for a book point
-    #'includes the book title, authors, year published, and pages
+      #'generates the tooltip description for a book point
+      #'includes the book title, authors, year published, and pages
     #'@param x the point the user is currently hovering over
     #'@return the tooltip text for a book
     
