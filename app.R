@@ -21,7 +21,7 @@ ui = fluidPage(
            wellPanel(
              h4("Filter"),
              sliderInput("ratings", "Minimum number of ratings on Goodreads",
-                         3000, 4000000, 1000000, step = 100000), 
+                         3000, 4000000, 100000, step = 100000), 
              sliderInput("year", "Year published", 1900, 2017, value = c(1970, 2014), sep = ""),
              checkboxInput("include_older_years", "Include years before 1900", FALSE),
              sliderInput("rating", "Minimum average rating",
@@ -38,16 +38,25 @@ ui = fluidPage(
     column(9,  
            ggvisOutput("plot1"),
            wellPanel(
-             span("Number of books selected:",
-                  textOutput("n_books")
-             )
-           ),
+             htmlOutput("n_books")
+            ),
            br(),
            wellPanel(
              actionButton("randombook", "Find me a book!"),
-             htmlOutput("randombook_title"), 
-             htmlOutput("randombook_author"), 
-             htmlOutput("randombook_cover")
+             br(),
+             br(),
+             fluidRow(
+               column(3, 
+                      
+                      htmlOutput("randombook_cover"),
+                      htmlOutput("randombook_title"), 
+                      htmlOutput("randombook_author"), 
+                      htmlOutput("randombook_avgrate"),
+                      htmlOutput("randombook_ratings")
+             ),
+              column(9, 
+                     htmlOutput("randombook_descr")
+                     ))
           )
     )
   )
@@ -135,34 +144,67 @@ server = function(input, output) {
     }
   }
 
-  # A reactive expression with the ggvis plot
-  vis = reactive({
-    filtered_books %>%
-      ggvis(x = ~average_rating, y = ~ratings_count) %>%
-      layer_points(size := 50, size.hover := 200,
-                   fillOpacity := 0.2, fillOpacity.hover := 0.5,
-                   key := ~X) %>%
-      add_tooltip(book_tooltip, "hover") %>% 
-      add_axis("x", title = "Average Rating (out of 5)") %>%
-      add_axis("y", title = "Number of Ratings", title_offset = 70) %>%
-      set_options(width = 500, height = 500)
-    # TODO: change output when no books meet criteria
-  })
-
+    # A reactive expression with the ggvis plot
+    vis = reactive({
+      filtered_books() %>%
+          ggvis(x = ~average_rating, y = ~ratings_count) %>%
+          layer_points(size := 100, size.hover := 250,
+                       fill := "deeppink", fillOpacity := 0.5, fillOpacity.hover := 0.8,
+                       stroke := "white", strokeWidth := 2, key := ~X) %>%
+          add_tooltip(book_tooltip, "hover") %>% 
+          add_axis("x", title = "Average Rating (out of 5)") %>%
+          add_axis("y", title = "Number of Ratings", title_offset = 70) %>%
+          set_options(width = 800, height = 600)
+      }
+    )
+  
 
   vis %>% bind_shiny("plot1")
   
-  output$n_books = renderText({ nrow(filtered_books()) })
   
+  output$n_books = renderText({ paste("Number of books selected: ", nrow(filtered_books())) })
+  
+  # Reactive context for selecting a random book
   random_row = eventReactive(input$randombook, {
+    # Check if there are any books after filtering
+    if (nrow(filtered_books()) < 1) {
+      return(NULL)
+    }
     sample(1:nrow(filtered_books()), 1)
   })
   
-  output$randombook_title = renderText({ paste("<b>", filtered_books()[random_row(), ]$title , "</b>") })
-  output$randombook_author = renderText({ filtered_books()[random_row(), ]$authors[[1]] })
-  output$randombook_cover = renderText({c('<img src="',filtered_books()[random_row(), ]$image_url,'">')})
+  # Render outputs related to the random book
+  output$randombook_title = renderText({ 
+    if (is.null(random_row())) return(NULL)
+    paste("<b>", filtered_books()[random_row(), ]$title , "</b>") 
+  })
+  
+  output$randombook_author = renderText({ 
+    if (is.null(random_row())) return(NULL)
+    filtered_books()[random_row(), ]$authors[[1]][1] 
+  })
+  
+  output$randombook_cover = renderText({
+    if (is.null(random_row())) return(NULL)
+    paste('<img src="', filtered_books()[random_row(), ]$image_url, '">')
+  })
+  
+  output$randombook_descr = renderText({ 
+    if (is.null(random_row())) return(NULL)
+    filtered_books()[random_row(), ]$description 
+  })
+  
+  output$randombook_ratings = renderText({ 
+    if (is.null(random_row())) return(NULL)
+    paste("Number of ratings: ", filtered_books()[random_row(), ]$ratings_count)
+  })
+  
+  output$randombook_avgrate = renderText({ 
+    if (is.null(random_row())) return(NULL)
+    paste("Average rating: ", filtered_books()[random_row(), ]$average_rating)
+  })
+  
   
 }
 
-# run app!
 shinyApp(ui = ui, server = server)
