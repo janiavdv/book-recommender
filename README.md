@@ -2,7 +2,7 @@
 
 ## Application Link
 
-
+[https://janiavdv.shinyapps.io/book_recommender/](https://janiavdv.shinyapps.io/book_recommender/)
 
 ## Dataset
 
