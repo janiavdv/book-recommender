@@ -49,8 +49,9 @@ ui = fluidPage(
                column(3, 
                       
                       htmlOutput("randombook_cover"),
-                      htmlOutput("randombook_title"), 
+                      htmlOutput("randombook_title"),
                       htmlOutput("randombook_author"), 
+                      htmlOutput("randombook_pages"), 
                       htmlOutput("randombook_avgrate"),
                       htmlOutput("randombook_ratings")
              ),
@@ -187,6 +188,11 @@ server = function(input, output) {
   output$randombook_cover = renderText({
     if (is.null(random_row())) return(NULL)
     paste('<img src="', filtered_books()[random_row(), ]$image_url, '">')
+  })
+  
+  output$randombook_pages = renderText({ 
+    if (is.null(random_row())) return(NULL)
+    paste("Number of pages: ", filtered_books()[random_row(), ]$pages)
   })
   
   output$randombook_descr = renderText({ 
